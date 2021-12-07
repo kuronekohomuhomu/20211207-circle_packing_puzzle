@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>13円充填パズル</title>
+<script>
+let canvas, context;
+const circles = new Array(13);
+let index = -1;
+let dx, dy, ox, oy;
+let check = false;
+const r = 20;
+const w = r * 19;
+// 円の初期位置
+const pos = [[50, 50], [110, 55], [180, 60], [260, 65], [350, 70],
+    [70, 140], [180, 160], [300, 170],
+    [80, 260], [210, 290], [350, 300],
+    [100, 400], [270, 430]];
+
+const init = () => {
+    // キャンバス
+    canvas = document.getElementById("board");
+    context = canvas.getContext("2d");
+    context.font = "16px sans-serif";
+    context.textAlign = "center";
+    context.textBaseline = "middle";
+    // 円の初期化
+    initCircle();
+    // マウスイベント
+    canvas.addEventListener("mousedown", selectCircle);
+    canvas.addEventListener("mousemove", moveCircle);
+    canvas.addEventListener("mouseup", setCircle);
+    canvas.addEventListener("mouseleave", setCircle);
+}
+
+const initCircle = () => {
+    // 円の初期化
+    document.getElementById("score").innerText = 0;
+    document.getElementById("message").innerText = "";
+    for (let i = 0; i < 13; i++) {
+        circles[i] = [pos[i][0]+w, pos[i][1], Math.floor(r*(i+1)**0.5)];
+    }
+    draw();
+}
+
+const drawCircle = (n, colorType = "default") => {
+    // 円、番号の描画
+    const [cx, cy, cr] = circles[n];
+    let [color, l] = ["#000000", 80];
+    if (colorType == "ok") {
+        [color, l] = ["#00FF00", 80];
+    } else if (colorType == "ng") {
+        [color, l] = ["#FF0000", 100];
+    }
+    context.beginPath();
+    context.arc(cx, cy, cr, 0, Math.PI*2);
+    context.fillStyle = `hsl(${Math.floor(n/13*360)},100%,${l}%)`;
+    context.fill();
+    context.strokeStyle = color;
+    context.stroke();
+    context.fillStyle = "#000000";
+    context.fillText(n+1, cx, cy);
+}
+
+const draw = () => {
+    // 正方形、円の描画
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    context.fillStyle = "#000000";
+    context.fillRect(10, 10, w, w);
+    for (let i = 0; i < 13; i++) {
+        if (i != index) drawCircle(i);
+    }
+    if (index > -1) {
+        let colorType = "ok";
+        if (check) colorType = "ng";
+        drawCircle(index, colorType);
+    }
+}
+
+const selectCircle = event => {
+    // 円を選択
+    const [x, y] = getPoint(event);
+    for (let i = 0; i < 13; i++) {
+        [ox, oy] = [circles[i][0], circles[i][1]];
+        [dx, dy] = [x-ox, y-oy];
+        const d = (dx**2 + dy**2) ** 0.5;
+        if (d < ((i+1)**0.5)*r) {
+            index = i;
+            break;
+        }
+    }
+    // 選択していれば描画
+    if (index > -1) draw();
+}
+
+const moveCircle = event => {
+    // 円を移動
+    const [x, y] = getPoint(event);
+    if (index > -1) {
+        // 移動先の座標、円の半径を取得
+        const [x0, y0, r0] = [x-dx, y-dy, circles[index][2]];
+        // 枠との接触チェック
+        check = false;
+        if ((x0-r0 <= 10)||(x0+r0 >= w+10)) check = true;
+        if ((y0-r0 <= 10)||(y0+r0 >= w+10)) check = true;
+        if ((x0-r0 > w+10)&&(x0+r0 < canvas.width)) check = false;
+        if ((x0-r0 > 0)&&(x0+r0 < canvas.width)
+            &&(y0-r0 > w+10)&&(y0+r0 < canvas.height)) check = false;
+        if ((y0-r0 <= 0)||(y0+r0 >= canvas.height)) check = true;
+        // 他の円との接触チェック
+        for (let i = 0; i < 13; i++) {
+            const [x1, y1, r1] = circles[i];
+            if (i != index) {
+                d = ((x0-x1)**2 + (y0-y1)**2) ** 0.5;
+                if (d < r0+r1) {
+                    // 接触
+                    check = true;
+                    break;
+                }
+            }
+        }
+        // 移動＋描画
+        circles[index] = [x0, y0, r0];
+        draw();
+    }
+}
+
+const setCircle = event => {
+    // 接触していれば元の位置に戻す
+    if ((check) && (index > -1)) {
+        [circles[index][0], circles[index][1]] = [ox, oy];
+    }
+    index = -1;
+    draw();
+    // 判定
+    let score = 0;
+    for (let i = 0; i < 13; i++) {
+        const [x0, y0, r0] = circles[i];
+        if ((x0-r0 > 10) && (x0+r0 < w+10)
+            && (y0-r0 > 10) && (y0+r0 < w+10)) score += i + 1;
+    }
+    document.getElementById("score").innerText = score;
+    document.getElementById("message").innerText = "";
+    if (score == 91) {
+        document.getElementById("message").innerText = "Clear!";
+    }
+}
+
+const getPoint = event => {
+    // マウスカーソルの位置を取得
+    const canvasRect = canvas.getBoundingClientRect();
+    const x = event.clientX - canvasRect.left;
+    const y = event.clientY - canvasRect.top;
+    return [x, y];
+}
+
+</script>
+<style>
+#message {color: #FF0000;}
+canvas {
+    border: thin solid #000000;
+    background-color: #FFFFEE;
+}
+</style>
+</head>
+<body onload="init()">
+<p>13円充填パズル</p>
+<input type="button" id="reset" value="リセット" onclick="initCircle()">
+SCORE：<span id="score">0</span>
+<span id="message"></span>
+<hr>
+<canvas id="board" width="800" height="600"></canvas>
+</body>
+</html>
